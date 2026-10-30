@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Королевская битва — мини-арена</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#101b2b;color:#fff;font-family:system-ui,Arial;display:flex;justify-content:center}
+main{width:min(100%,760px);padding:16px}.top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+h1{font-size:22px;margin:0}.stats{display:flex;gap:12px;font-weight:700}.pill{background:#22344c;padding:8px 12px;border-radius:12px}
+canvas{width:100%;display:block;border:3px solid #38516b;border-radius:16px;background:#6eaa58;touch-action:manipulation}
+.hint{color:#c5d3e3;font-size:13px;margin:8px 2px}
+.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:10px}
+.deck-title{font-size:16px;margin:10px 0 0}
+.deck-builder{background:#1b2b40;border:1px solid #405874;border-radius:14px;padding:12px;margin-top:12px}
+.deck-header{display:flex;justify-content:space-between;gap:8px}
+.deck-header span{color:#ffe58a;font-weight:700}
+.collection{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.collection button{min-height:58px;font-size:12px;padding:6px 3px}
+.collection button.in-deck{border-color:#8fe39a;background:#31543e}
+.collection button small{display:block;font-size:10px;font-weight:500}
+.apply-deck{width:100%;min-height:42px;margin-top:9px;background:#356b45;border-color:#83c995}
+.arena-info{background:#263c57;border-radius:10px;padding:9px 12px;margin:8px 0;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.arena-info span{color:#c5d3e3;font-size:12px}
+button{border:2px solid #7188a3;background:#243750;color:white;border-radius:12px;padding:10px 5px;font-weight:700;cursor:pointer;min-height:72px}
+button.selected{border-color:#ffe16a;background:#46512d;transform:translateY(-2px)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.card small{display:block;font-weight:500;color:#d5dfeb;margin-top:4px}
+.actions{display:flex;gap:8px;margin-top:10px}.actions button{min-height:42px;flex:1}
+#message{min-height:24px;color:#ffe58a;font-weight:700;margin:8px 2px}
+.economy{background:#1b2b40;border:1px solid #405874;border-radius:16px;padding:12px;margin-top:12px}
+.economy-head{display:flex;justify-content:space-between;gap:10px;background:#263c57;border-radius:10px;padding:10px}
+.economy h2{font-size:18px;margin:14px 0 8px}.shop{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.offer{background:#263c57;border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:7px}
+.offer small{color:#c5d3e3;min-height:34px}.offer button{min-height:38px;padding:6px}
+#chestResult{min-height:20px;color:#ffe58a;font-weight:700;margin:0}
+@media(max-width:520px){.shop{grid-template-columns:1fr}.offer{display:grid;grid-template-columns:1fr auto}.offer small{grid-column:1}.offer button{grid-column:2;grid-row:1/3}}
+@media(max-width:440px){h1{font-size:18px}.pill{padding:6px 8px;font-size:13px}.cards{gap:5px}.collection{grid-template-columns:repeat(3,minmax(0,1fr))}button{font-size:12px;padding:7px 2px}}
+:fullscreen{background:#101b2b;overflow:auto}
+:fullscreen main{width:100vw;max-width:none;min-height:100vh;padding:10px 14px;display:flex;flex-direction:column}
+:fullscreen canvas{flex:1;width:100%;height:auto;max-height:calc(100vh - 235px);object-fit:contain}
+:fullscreen .cards{margin-top:8px}
+:fullscreen .economy{margin-top:8px}
+:fullscreen .shop{grid-template-columns:repeat(3,minmax(0,1fr))}
+:fullscreen .offer{padding:7px}
+@media(max-width:600px){:fullscreen main{padding:6px}:fullscreen canvas{max-height:calc(100vh - 260px)}:fullscreen .economy{padding:8px}:fullscreen .shop{grid-template-columns:1fr 1fr}}
+
+</style>
+
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#101b2b">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Королевская битва">
+<link rel="apple-touch-icon" href="icon-192.png">
+
+</head>
+<body><main>
+<div class="top"><h1>⚔️ Королевская битва</h1><div class="stats"><div class="pill">💧 <span id="mana">5</span>/10</div><div class="pill">⏱️ <span id="time">2:00</span></div></div></div>
+<div class="arena-info">🏟️ Арена: <strong id="arenaName">Тренировочная</strong> <span id="arenaProgress"></span></div>
+<canvas id="arena" width="700" height="500"></canvas>
+<div class="hint">Выбери карту, затем нажми на свою половину арены, чтобы выставить бойца. Разрушь башню противника!</div>
+<h3 class="deck-title">🃏 Твоя колода в бою</h3>
+<div class="cards" id="cards"></div>
+<section class="deck-builder">
+  <div class="deck-header"><strong>🧰 Собери колоду</strong><span id="deckCount">8/8 карт</span></div>
+  <p class="hint">Выбирай 8 карт из коллекции. Нажми на карту, чтобы добавить или убрать её из колоды.</p>
+  <div class="collection" id="deckCollection"></div>
+  <button id="applyDeck" class="apply-deck">Сохранить колоду</button>
+  <div id="deckMessage" class="hint">Колода готова к бою!</div>
+</section>
+<div id="message">Твой ход! Выбери бойца.</div>
+<div class="actions"><button id="restart">↻ Новая битва</button><button id="help">❔ Правила</button><button id="fullscreen">⛶ Полный экран</button></div>
+<div class="economy">
+  <div class="economy-head"><strong>🏆 Кубки: <span id="trophies">0</span></strong><strong>🪙 Монеты: <span id="coins">100</span></strong></div>
+  <h2>🎁 Сундуки</h2>
+  <div class="offer">
+    <span>🌟 Магический сундук</span>
+    <small>Случайная карта и шанс получить редкую или легендарную награду.</small>
+    <button id="openChest">Открыть · 80 🪙</button>
+    <div id="chestResult" class="hint">Внутри тебя ждут награды!</div>
+  </div>
+  <h2>🛒 Магазин</h2>
+  <div class="shop">
+    <div class="offer"><span>⚔️ Усиление атаки</span><small>+20% урона бойцам в следующей битве</small><button id="buyAttack">Купить · 60 🪙</button></div>
+    <div class="offer"><span>💧 Запас эликсира</span><small>Начинай следующую битву с 8 эликсирами</small><button id="buyMana">Купить · 50 🪙</button></div>
+    <div class="offer"><span>❤️ Крепкие башни</span><small>+150 здоровья твоим башням в следующей битве</small><button id="buyTower">Купить · 70 🪙</button></div>
+  </div>
+  <p class="hint">За победу получаешь +30 кубков и 40 монет. За поражение — −10 кубков (но не ниже нуля) и 10 монет.</p>
+  <div id="shopMessage" class="hint"></div>
+</div>
+</main>
+<script>
+(()=>{
+const c=document.getElementById('arena'),ctx=c.getContext('2d'),manaEl=document.getElementById('mana'),timeEl=document.getElementById('time'),msg=document.getElementById('message');
+const cardsEl=document.getElementById('cards');
+const collectionEl=document.getElementById('deckCollection');
+const deckCountEl=document.getElementById('deckCount');
+const deckMessage=document.getElementById('deckMessage');
+const cardData=[
+{id:'knight',emoji:'🛡️',name:'Рыцарь',cost:3,desc:'крепкий боец'},
+{id:'archer',emoji:'🏹',name:'Лучница',cost:3,desc:'дальняя атака'},
+{id:'giant',emoji:'🗿',name:'Голем',cost:5,desc:'бьёт башни'},
+{id:'runner',emoji:'⚡',name:'Разведчик',cost:2,desc:'быстрый'},
+{id:'mage',emoji:'🧙',name:'Маг',cost:4,desc:'дальняя атака'},
+{id:'bomber',emoji:'💣',name:'Бомбардир',cost:3,desc:'мощный удар'},
+{id:'healer',emoji:'✨',name:'Целитель',cost:4,desc:'много здоровья'},
+{id:'miniGolem',emoji:'🪨',name:'Каменный малыш',cost:2,desc:'быстрый танк'},
+{id:'iceMage',emoji:'❄️',name:'Ледяной маг',cost:4,desc:'сильный дальний удар'},
+{id:'dragon',emoji:'🐉',name:'Дракончик',cost:5,desc:'воздушный боец'},
+{id:'skeleton',emoji:'💀',name:'Скелет',cost:1,desc:'дешёвый и быстрый'},
+{id:'guardian',emoji:'🦾',name:'Страж',cost:4,desc:'тяжёлая броня'}
+];
+const costs=Object.fromEntries(cardData.map(x=>[x.id,x.cost]));
+const names=Object.fromEntries(cardData.map(x=>[x.id,x.name]));
+const emojiById=Object.fromEntries(cardData.map(x=>[x.id,x.emoji]));
+let selected='knight';
+let deck=(()=>{try{const saved=JSON.parse(localStorage.getItem('kr_deck')||'null');if(Array.isArray(saved)&&saved.length===8&&saved.every(id=>cardData.some(x=>x.id===id)))return saved;}catch(e){}return cardData.slice(0,8).map(x=>x.id);})();
+let draftDeck=[...deck];
+let cardLevels=(()=>{try{return JSON.parse(localStorage.getItem('kr_card_levels')||'{}')}catch(e){return {}}})();
+function getLevel(id){return Math.max(1,Number(cardLevels[id]||1));}
+function renderCollection(){
+ collectionEl.innerHTML='';
+ cardData.forEach(card=>{
+  const b=document.createElement('button');b.type='button';b.className=draftDeck.includes(card.id)?'in-deck':'';
+  b.innerHTML=`${card.emoji} ${card.name}<small>${card.cost} 💧 · ур. ${getLevel(card.id)} · ${draftDeck.includes(card.id)?'В колоде':'В коллекции'}</small>`;
+  b.onclick=()=>{
+   if(draftDeck.includes(card.id)){draftDeck=draftDeck.filter(x=>x!==card.id);}
+   else if(draftDeck.length<8){draftDeck.push(card.id);}
+   else{deckMessage.textContent='В колоде уже 8 карт. Сначала убери одну.';return;}
+   deckCountEl.textContent=`${draftDeck.length}/8 карт`;renderCollection();
+   deckMessage.textContent='Не забудь сохранить изменения.';
+  };
+  collectionEl.appendChild(b);
+ });
+ deckCountEl.textContent=`${draftDeck.length}/8 карт`;
+}
+function renderBattleCards(){
+ cardsEl.innerHTML='';
+ deck.forEach(id=>{
+  const card=cardData.find(x=>x.id===id);if(!card)return;
+  const b=document.createElement('button');b.className='card'+(selected===id?' selected':'');b.dataset.card=id;
+  b.innerHTML=`${card.emoji} ${card.name}<small>${card.cost} 💧 · ${card.desc}</small>`;
+  b.onclick=()=>{selected=id;renderBattleCards();};
+  cardsEl.appendChild(b);
+ });
+ if(!deck.includes(selected))selected=deck[0];
+}
+document.getElementById('applyDeck').onclick=()=>{
+ if(draftDeck.length!==8){deckMessage.textContent='Нужно выбрать ровно 8 карт.';return;}
+ deck=[...draftDeck];localStorage.setItem('kr_deck',JSON.stringify(deck));
+ if(!deck.includes(selected))selected=deck[0];
+ renderBattleCards();deckMessage.textContent='Колода сохранена! Эти 8 карт доступны в бою.';
+};
+renderCollection();renderBattleCards();
+const arenaNameEl=document.getElementById('arenaName'),arenaProgressEl=document.getElementById('arenaProgress');
+const arenas=[
+{name:'Тренировочная',min:0,grass:'#79b95d',river:'#4e9eac',bridge:'#c7a46b'},
+{name:'Лесная',min:100,grass:'#4f9855',river:'#368c9d',bridge:'#9a754c'},
+{name:'Пустынная',min:250,grass:'#c5a45f',river:'#4b9da5',bridge:'#d4bd86'},
+{name:'Ледяная',min:500,grass:'#9bc9d2',river:'#5a9bc5',bridge:'#dcebf0'},
+{name:'Вулканическая',min:800,grass:'#805044',river:'#b85c38',bridge:'#4c3531'}
+];
+function currentArena(){let a=arenas[0];for(const x of arenas)if(trophies>=x.min)a=x;return a;}
+function updateArena(){const a=currentArena(),next=arenas.find(x=>x.min>trophies);arenaNameEl.textContent=a.name;arenaProgressEl.textContent=next?`До «${next.name}»: ${next.min-trophies} 🏆`:'Максимальная арена!';}
+let units, towers, mana, seconds,ended,last=0,enemyClock=0;
+let trophies=Number(localStorage.getItem('kr_trophies')||0);
+let coins=Number(localStorage.getItem('kr_coins')||100);
+let attackBoost=false, manaBoost=false, towerBoost=false;
+const trophiesEl=document.getElementById('trophies'),coinsEl=document.getElementById('coins'),shopMessage=document.getElementById('shopMessage');
+function updateEconomy(){trophiesEl.textContent=trophies;coinsEl.textContent=coins;localStorage.setItem('kr_trophies',trophies);localStorage.setItem('kr_coins',coins);updateArena();}
+function buy(price,kind){if(coins<price){shopMessage.textContent='Не хватает монет! Сыграй ещё битву.';return;}if(({attack:attackBoost,mana:manaBoost,tower:towerBoost})[kind]){shopMessage.textContent='Это улучшение уже куплено для следующей битвы.';return;}coins-=price;if(kind==='attack')attackBoost=true;if(kind==='mana')manaBoost=true;if(kind==='tower')towerBoost=true;updateEconomy();shopMessage.textContent='Покупка успешна! Улучшение действует в следующей битве.';}
+document.getElementById('buyAttack').onclick=()=>buy(60,'attack');
+document.getElementById('buyMana').onclick=()=>buy(50,'mana');
+document.getElementById('buyTower').onclick=()=>buy(70,'tower');
+document.getElementById('openChest').onclick=()=>{
+ const result=document.getElementById('chestResult');
+ if(coins<80){result.textContent='Не хватает монет! Нужно ещё сыграть несколько битв.';return;}
+ coins-=80;
+ const roll=Math.random();
+ const rarity=roll<.08?'Легендарная':roll<.30?'Эпическая':roll<.65?'Редкая':'Обычная';
+ const pool=cardData.filter(x=>rarity==='Легендарная'?['dragon','iceMage','guardian'].includes(x.id):rarity==='Эпическая'?['giant','mage','healer','bomber'].includes(x.id):rarity==='Редкая'?['archer','miniGolem','runner','guardian'].includes(x.id):true);
+ const prize=pool[Math.floor(Math.random()*pool.length)];
+ cardLevels[prize.id]=getLevel(prize.id)+1;
+ localStorage.setItem('kr_card_levels',JSON.stringify(cardLevels));
+ updateEconomy();renderCollection();
+ result.textContent=`${rarity} награда: ${prize.emoji} ${prize.name} теперь ${getLevel(prize.id)} уровня! +8% здоровья и урона за уровень.`;
+};
+function reward(win){if(win){trophies+=30;coins+=40;}else{trophies=Math.max(0,trophies-10);coins+=10;}updateEconomy();}
+function reset(){units=[];mana=manaBoost?8:5;seconds=120;ended=false;enemyClock=2; towers=[
+{team:0,x:350,y:455,hp:900+(towerBoost?150:0),max:900+(towerBoost?150:0),king:true},{team:1,x:350,y:45,hp:900,max:900,king:true},
+{team:0,x:145,y:390,hp:520+(towerBoost?150:0),max:520+(towerBoost?150:0)},{team:0,x:555,y:390,hp:520+(towerBoost?150:0),max:520+(towerBoost?150:0)},
+{team:1,x:145,y:110,hp:520,max:520},{team:1,x:555,y:110,hp:520,max:520}];
+attackBoost=false;manaBoost=false;towerBoost=false;shopMessage.textContent='';
+msg.textContent='Твой ход! Выбери бойца.';last=performance.now();requestAnimationFrame(loop)}
+function spawn(type,team,x,y){let data={
+knight:[170,18,42,34],archer:[95,12,90,26],giant:[420,32,27,48],runner:[105,10,24,48],
+mage:[125,24,115,23],bomber:[115,34,65,25],healer:[230,13,48,25],miniGolem:[155,16,30,43],
+iceMage:[115,22,125,22],dragon:[250,29,75,30],skeleton:[65,9,28,58],guardian:[300,22,40,25]
+}[type];let level=team===0?getLevel(type):1;let hp=data[0]*(1+(level-1)*.08),dmg=data[1]*(1+(level-1)*.08)*(team===0&&attackBoost?1.2:1);units.push({type,team,x,y,hp,max:hp,dmg,range:data[2],speed:data[3],cool:0,rad:(type==='giant'||type==='healer'||type==='dragon'||type==='guardian')?15:11})}
+cardsEl.querySelectorAll('.card').forEach(b=>b.onclick=()=>{selected=b.dataset.card;cardsEl.querySelectorAll('.card').forEach(x=>x.classList.toggle('selected',x===b))});
+c.addEventListener('click',e=>{if(ended)return;let r=c.getBoundingClientRect(),x=(e.clientX-r.left)*c.width/r.width,y=(e.clientY-r.top)*c.height/r.height;if(y<255){msg.textContent='Выставлять бойцов можно только на своей половине!';return}if(!deck.includes(selected))selected=deck[0];let cost=costs[selected];if(mana<cost){msg.textContent='Недостаточно эликсира!';return}mana-=cost;spawn(selected,0,x,y);msg.textContent=names[selected]+' вступает в бой!'});
+document.getElementById('restart').onclick=reset;
+const fullscreenButton=document.getElementById('fullscreen');
+fullscreenButton.onclick=async()=>{
+  try{
+    if(!document.fullscreenElement){await document.documentElement.requestFullscreen();fullscreenButton.textContent='⛶ Обычный экран';}
+    else{await document.exitFullscreen();fullscreenButton.textContent='⛶ Полный экран';}
+  }catch(e){msg.textContent='Полный экран не поддерживается этим браузером.';}
+};
+document.addEventListener('fullscreenchange',()=>{
+  fullscreenButton.textContent=document.fullscreenElement?'⛶ Обычный экран':'⛶ Полный экран';
+});
+document.getElementById('help').onclick=()=>msg.textContent='Трать эликсир на бойцов. Они сами идут к врагам и атакуют. Победа — разрушить главную башню соперника; если время вышло, побеждает тот, у кого больше здоровья башен.';
+function nearestTarget(u){let enemies=units.filter(v=>v.team!==u.team&&v.hp>0);let towersAlive=towers.filter(t=>t.team!==u.team&&t.hp>0);let all=[...enemies,...towersAlive];if(u.type==='giant'){let ts=towersAlive; if(ts.length)all=ts}return all.sort((a,b)=>Math.hypot(a.x-u.x,a.y-u.y)-Math.hypot(b.x-u.x,b.y-u.y))[0]}
+function update(dt){if(ended)return;seconds-=dt;mana=Math.min(10,mana+dt*.42);enemyClock-=dt;if(enemyClock<=0){let types=['knight','archer','runner','mage','bomber','miniGolem','iceMage','dragon','skeleton','guardian'];let type=types[Math.floor(Math.random()*types.length)];let lane=Math.random()<.5?145:555;spawn(type,1,lane+Math.random()*35-17,125);enemyClock=3.4+Math.random()*2.4}
+for(let u of units){if(u.hp<=0)continue;u.cool-=dt;let t=nearestTarget(u);if(!t)continue;let d=Math.hypot(t.x-u.x,t.y-u.y);if(d>u.range+u.rad+(t.rad||22)){let dx=(t.x-u.x)/d,dy=(t.y-u.y)/d;u.x+=dx*u.speed*dt;u.y+=dy*u.speed*dt;u.x=Math.max(25,Math.min(675,u.x));u.y=Math.max(20,Math.min(480,u.y))}
+else if(u.cool<=0){t.hp-=u.dmg;u.cool=u.type==='archer'?1.05:.85}}
+units=units.filter(u=>u.hp>0);
+for(let t of towers){if(t.hp<=0)continue;t.cool=(t.cool||0)-dt;let target=units.filter(u=>u.team!==t.team&&Math.hypot(u.x-t.x,u.y-t.y)<145).sort((a,b)=>Math.hypot(a.x-t.x,a.y-t.y)-Math.hypot(b.x-t.x,b.y-t.y))[0];if(target&&t.cool<=0){target.hp-=24;t.cool=.8}}
+let enemyKing=towers[1],myKing=towers[0];if(enemyKing.hp<=0){ended=true;reward(true);msg.textContent='🏆 Победа! +30 кубков и +40 монет!'}else if(myKing.hp<=0){ended=true;reward(false);msg.textContent='💥 Поражение. +10 монет, −10 кубков.'}else if(seconds<=0){ended=true;let a=towers.filter(t=>t.team===0).reduce((s,t)=>s+t.hp,0),b=towers.filter(t=>t.team===1).reduce((s,t)=>s+t.hp,0);let win=a>=b;reward(win);msg.textContent=win?'⏱️ Победа по здоровью башен! +30 кубков и +40 монет.':'⏱️ Поражение! +10 монет, −10 кубков.'}}
+function draw(){const arena=currentArena();ctx.clearRect(0,0,700,500);ctx.fillStyle=arena.grass;ctx.fillRect(0,0,700,500);ctx.fillStyle=arena.river;ctx.fillRect(0,238,700,24);ctx.fillStyle=arena.bridge;ctx.fillRect(125,220,40,60);ctx.fillRect(535,220,40,60);ctx.strokeStyle='rgba(255,255,255,.28)';ctx.setLineDash([8,8]);ctx.beginPath();ctx.moveTo(0,250);ctx.lineTo(700,250);ctx.stroke();ctx.setLineDash([]);
+for(let t of towers){ctx.fillStyle=t.team===0?'#3268c8':'#c34b4b';ctx.fillRect(t.x-(t.king?27:22),t.y-(t.king?27:22),t.king?54:44,t.king?54:44);ctx.fillStyle='#fff';ctx.font='bold 20px sans-serif';ctx.textAlign='center';ctx.fillText(t.king?'♛':'♜',t.x,t.y+7);ctx.fillStyle='#432';ctx.fillRect(t.x-30,t.y-(t.king?39:33),60,6);ctx.fillStyle='#64e36f';ctx.fillRect(t.x-30,t.y-(t.king?39:33),60*Math.max(0,t.hp/t.max),6)}
+for(let u of units){ctx.beginPath();ctx.fillStyle=u.team===0?'#3479ed':'#df5353';ctx.arc(u.x,u.y,u.rad,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();ctx.fillStyle='#fff';ctx.font='15px sans-serif';ctx.textAlign='center';ctx.fillText(emojiById[u.type]||'⚔️' ,u.x,u.y+5);ctx.fillStyle='#382';ctx.fillRect(u.x-15,u.y-u.rad-8,30,4);ctx.fillStyle='#69ed73';ctx.fillRect(u.x-15,u.y-u.rad-8,30*Math.max(0,u.hp/u.max),4)}
+}
+function loop(now){let dt=Math.min(.05,(now-last)/1000);last=now;update(dt);draw();manaEl.textContent=Math.floor(mana);let m=Math.floor(Math.max(0,seconds)/60),s=Math.floor(Math.max(0,seconds)%60);timeEl.textContent=m+':'+String(s).padStart(2,'0');if(!ended)requestAnimationFrame(loop)}
+updateEconomy();reset();
+})();
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(err => console.warn("Офлайн-режим недоступен:", err));
+  });
+}
+</script>
+
+</body></html>
